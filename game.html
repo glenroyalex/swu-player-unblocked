@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SWU Player Unblocked</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- Unblocked CDN for P2P Networking -->
+    <script src="https://unpkg.com"></script>
+</head>
+<body>
+    <div id="lobby-screen">
+        <h2>Star Wars: Unlimited Sandbox</h2>
+        <input type="text" id="deck-input" placeholder="Paste SWUDB JSON or Text here">
+        <br><br>
+        <button id="create-room">Create Room (Host)</button>
+        <button id="join-room">Join Room (Peer)</button>
+        <input type="text" id="room-id" placeholder="Enter Friend's Room ID">
+    </div>
+
+    <div id="game-board" style="display:none;">
+        <!-- Enemy Side -->
+        <div class="arena space" id="enemy-space">Space Arena (Enemy)</div>
+        <div class="arena ground" id="enemy-ground">Ground Arena (Enemy)</div>
+        
+        <!-- Center / Objective Line -->
+        <div id="center-line">
+            <div id="enemy-base">Enemy Base (0/30)</div>
+            <div id="player-base">Your Base (0/30)</div>
+        </div>
+
+        <!-- Player Side -->
+        <div class="arena ground" id="player-ground">Ground Arena (Player)</div>
+        <div class="arena space" id="player-space">Space Arena (Player)</div>
+        
+        <!-- Player UI Floor -->
+        <div id="player-hand"></div>
+        <div id="player-resources"></div>
+    </div>
+
+    <script src="js/network.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
