@@ -29,7 +29,7 @@
         /* Setup / Lobby Screen Layout */
         #setup-screen {
             max-width: 600px;
-            margin: 50px auto;
+            margin: 30px auto;
             padding: 30px;
             background: #1e1e24;
             border-radius: 12px;
@@ -37,17 +37,38 @@
             text-align: center;
         }
 
+        .deck-box-container {
+            background: #2b2b36;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        select, input[type="text"] {
+            padding: 10px;
+            background: #1e1e24;
+            color: white;
+            border: 1px solid #5a5d7a;
+            border-radius: 6px;
+            width: 100%;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
         textarea {
             width: 100%;
-            height: 120px;
-            background: #2b2b36;
+            height: 100px;
+            background: #1e1e24;
             color: #fff;
-            border: 1px solid #444;
+            border: 1px solid #5a5d7a;
             border-radius: 6px;
             padding: 10px;
             box-sizing: border-box;
             font-family: monospace;
             resize: none;
+            margin-bottom: 10px;
         }
 
         button {
@@ -59,19 +80,16 @@
             font-weight: 600;
             border-radius: 6px;
             cursor: pointer;
-            margin: 10px 5px;
+            margin: 5px;
             transition: background 0.2s;
         }
 
         button:hover { background: #6366f1; }
-        input[type="text"] {
-            padding: 11px;
-            width: 200px;
-            background: #2b2b36;
-            color: white;
-            border: 1px solid #444;
-            border-radius: 6px;
-        }
+        
+        .btn-success { background: #10b981; }
+        .btn-success:hover { background: #059669; }
+        .btn-danger { background: #dc2626; }
+        .btn-danger:hover { background: #b91c1c; }
 
         /* Main Game Layout */
         #game-container {
@@ -219,8 +237,23 @@
     <!-- SETUP LOBBY SCREEN -->
     <div id="setup-screen">
         <h2>🌌 SWU Unblocked Sandbox Engine</h2>
-        <p style="color: #aaa; font-size: 0.9rem;">Copy-paste your deck list text from SWUDB below:</p>
-        <textarea id="decklist-input" placeholder="1 Luke Skywalker, Faithful Friend&#10;2 Restored ARC-170&#10;2 Battlefield Marine&#10;1 Home One"></textarea>
+        
+        <!-- DECK MANAGER INTERFACE BLOCK -->
+        <div class="deck-box-container">
+            <label style="font-weight: bold; color: #818cf8;">🗂️ Select Your Active Deck:</label>
+            <select id="deck-selector" onchange="loadSelectedDeckToForm()">
+                <!-- Populated dynamically via JS -->
+            </select>
+
+            <label style="font-weight: bold; color: #818cf8;">➕ Add / Edit a Deck Slot:</label>
+            <input type="text" id="deck-name-input" placeholder="Deck Name (e.g., Luke Aggro)">
+            <textarea id="decklist-input" placeholder="1 Luke Skywalker, Faithful Friend&#10;2 Restored ARC-170&#10;2 Battlefield Marine"></textarea>
+            
+            <div style="display: flex; justify-content: space-between;">
+                <button onclick="saveCurrentDeck()" style="font-size: 0.85rem; padding: 8px 16px;">💾 Save/Update Deck</button>
+                <button onclick="deleteSelectedDeck()" class="btn-danger" style="font-size: 0.85rem; padding: 8px 16px;">🗑️ Delete Deck</button>
+            </div>
+        </div>
         
         <div style="margin-top: 20px;">
             <button onclick="startSinglePlayer()">🤖 Play VS Local AI Bot</button>
@@ -229,8 +262,8 @@
         <div>
             <button onclick="createMultiplayerRoom()">📡 Host P2P Match</button>
             <br>
-            <input type="text" id="join-room-id" placeholder="Paste Room ID here">
-            <button onclick="joinMultiplayerRoom()" style="background:#10b981;">Connect to Host</button>
+            <input type="text" id="join-room-id" placeholder="Paste Room ID here" style="width:200px; display:inline-block; margin-bottom:0;">
+            <button onclick="joinMultiplayerRoom()" class="btn-success">Connect to Host</button>
         </div>
     </div>
 
@@ -239,7 +272,7 @@
         <header>
             <div>⚡ Mode: <span id="game-mode-label">Sandbox</span></div>
             <div>🏥 Base HP — Player: <span id="p-hp">30</span>/30 | Opponent: <span id="o-hp">30</span>/30</div>
-            <button onclick="location.reload()" style="padding:5px 10px; font-size:0.8rem; background:#dc2626;">Exit</button>
+            <button onclick="location.reload()" class="btn-danger" style="padding:5px 10px; font-size:0.8rem;">Exit</button>
         </header>
 
         <div id="battlefield">
@@ -266,38 +299,3 @@
             <div class="zone-box" style="flex-direction:column; justify-content:center; align-items:flex-start;">
                 <div>📦 Resources: <span id="res-count">0</span></div>
                 <div style="margin-top:5px;">
-                    <button onclick="adjustResources(1)" style="padding:3px 8px; font-size:0.75rem;">+ Add</button>
-                    <button onclick="readyAllResources()" style="padding:3px 8px; font-size:0.75rem; background:#059669;">Ready</button>
-                </div>
-            </div>
-
-            <!-- Hand Tray Container -->
-            <div class="zone-box" id="my-hand"></div>
-
-            <!-- Actions Panel Area -->
-            <div class="zone-box" style="justify-content:center;">
-                <button onclick="drawCard()" style="background:#d97706; padding:15px;">🃏 Draw Card</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // Core game state arrays
-        let deck = [];
-        let hand = [];
-        let playerResources = 0;
-        let isAIActive = false;
-        let peer = null;
-        let connection = null;
-
-        // Fallback card database item registry array used if deck strings parse empty
-        const fallbackDatabase = [
-            { name: "Battlefield Marine", cost: 2, attack: 3, hp: 3, arena: "ground" },
-            { name: "Restored ARC-170", cost: 2, attack: 2, hp: 3, arena: "space" },
-            { name: "Vanguard Infantry", cost: 1, attack: 2, hp: 2, arena: "ground" },
-            { name: "Alliance X-Wing", cost: 3, attack: 2, hp: 3, arena: "space" }
-        ];
-
-        // --- DECKLIST PARSER ENGINE ---
-        function parseDecklist() {
-            const text = document.getElementById("decklist-input").value.trim();
