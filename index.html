@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SWU Player Unblocked</title>
+    <!-- PeerJS CDN for unblocked P2P multiplayer connections -->
+    <script src="https://unpkg.com"></script>
+    <style>
+        :root {
+            --space-color: #1a1c2e;
+            --ground-color: #2e241a;
+            --card-bg: #3a3d52;
+            --text-color: #f0f0f0;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #121214;
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+
+        /* Screen Management */
+        .hidden { display: none !important; }
+        
+        /* Setup / Lobby Screen Layout */
+        #setup-screen {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 30px;
+            background: #1e1e24;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+
+        textarea {
+            width: 100%;
+            height: 120px;
+            background: #2b2b36;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 10px;
+            box-sizing: border-box;
+            font-family: monospace;
+            resize: none;
+        }
+
+        button {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: background 0.2s;
+        }
+
+        button:hover { background: #6366f1; }
+        input[type="text"] {
+            padding: 11px;
+            width: 200px;
+            background: #2b2b36;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 6px;
+        }
+
+        /* Main Game Layout */
+        #game-container {
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+        }
+
+        header {
+            background: #1a1a1f;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #2d2d35;
+        }
+
+        #battlefield {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding: 10px;
+            background: #151518;
+        }
+
+        .arena {
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 200px;
+            box-sizing: border-box;
+        }
+
+        .space-arena { background-color: var(--space-color); border: 2px dashed #42557a; }
+        .ground-arena { background-color: var(--ground-color); border: 2px dashed #7a5842; }
+
+        .arena-title {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #8a8d9f;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .card-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            min-height: 120px;
+            align-content: flex-start;
+        }
+
+        /* Authentic Card UI Styling */
+        .card {
+            width: 90px;
+            height: 130px;
+            background: var(--card-bg);
+            border: 2px solid #5a5d7a;
+            border-radius: 6px;
+            position: relative;
+            padding: 6px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: #818cf8;
+        }
+
+        .card.exhausted {
+            transform: rotate(15deg) translateY(4px);
+            opacity: 0.7;
+            border-color: #ef4444;
+        }
+
+        .card-cost {
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            background: #3b82f6;
+            color: white;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 18px;
+            font-weight: bold;
+            font-size: 0.7rem;
+        }
+
+        .card-stats {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            background: rgba(0,0,0,0.4);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .stat-atk { color: #f59e0b; }
+        .stat-hp { color: #ef4444; }
+
+        /* Control Tray panel */
+        #player-tray {
+            background: #1a1a1f;
+            padding: 15px;
+            display: grid;
+            grid-template-columns: 200px 1fr 200px;
+            gap: 20px;
+            align-items: center;
+            border-top: 2px solid #2d2d35;
+        }
+
+        .zone-box {
+            background: #232329;
+            border-radius: 6px;
+            padding: 10px;
+            height: 100px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            overflow-x: auto;
+        }
+
+        #my-hand {
+            grid-column: 2;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SETUP LOBBY SCREEN -->
+    <div id="setup-screen">
+        <h2>🌌 SWU Unblocked Sandbox Engine</h2>
+        <p style="color: #aaa; font-size: 0.9rem;">Copy-paste your deck list text from SWUDB below:</p>
+        <textarea id="decklist-input" placeholder="1 Luke Skywalker, Faithful Friend&#10;2 Restored ARC-170&#10;2 Battlefield Marine&#10;1 Home One"></textarea>
+        
+        <div style="margin-top: 20px;">
+            <button onclick="startSinglePlayer()">🤖 Play VS Local AI Bot</button>
+        </div>
+        <div style="margin: 15px 0; color: #666;">— OR MULTIPLAYER —</div>
+        <div>
+            <button onclick="createMultiplayerRoom()">📡 Host P2P Match</button>
+            <br>
+            <input type="text" id="join-room-id" placeholder="Paste Room ID here">
+            <button onclick="joinMultiplayerRoom()" style="background:#10b981;">Connect to Host</button>
+        </div>
+    </div>
+
+    <!-- GAMEPLAY VIEW INTERFACE -->
+    <div id="game-container" class="hidden">
+        <header>
+            <div>⚡ Mode: <span id="game-mode-label">Sandbox</span></div>
+            <div>🏥 Base HP — Player: <span id="p-hp">30</span>/30 | Opponent: <span id="o-hp">30</span>/30</div>
+            <button onclick="location.reload()" style="padding:5px 10px; font-size:0.8rem; background:#dc2626;">Exit</button>
+        </header>
+
+        <div id="battlefield">
+            <!-- Space Battle Arena Partition -->
+            <div class="arena space-arena">
+                <div class="arena-title">Space Arena</div>
+                <div class="card-row" id="arena-space-opp"><!-- Enemy Space Units --></div>
+                <div style="border-bottom: 1px dashed #444; width:100%;"></div>
+                <div class="card-row" id="arena-space-ply"><!-- Player Space Units --></div>
+            </div>
+
+            <!-- Ground Battle Arena Partition -->
+            <div class="arena ground-arena">
+                <div class="arena-title">Ground Arena</div>
+                <div class="card-row" id="arena-ground-opp"><!-- Enemy Ground Units --></div>
+                <div style="border-bottom: 1px dashed #444; width:100%;"></div>
+                <div class="card-row" id="arena-ground-ply"><!-- Player Ground Units --></div>
+            </div>
+        </div>
+
+        <!-- Interactive Control Interface Floor -->
+        <div id="player-tray">
+            <!-- Left Side Resources Tracker -->
+            <div class="zone-box" style="flex-direction:column; justify-content:center; align-items:flex-start;">
+                <div>📦 Resources: <span id="res-count">0</span></div>
+                <div style="margin-top:5px;">
+                    <button onclick="adjustResources(1)" style="padding:3px 8px; font-size:0.75rem;">+ Add</button>
+                    <button onclick="readyAllResources()" style="padding:3px 8px; font-size:0.75rem; background:#059669;">Ready</button>
+                </div>
+            </div>
+
+            <!-- Hand Tray Container -->
+            <div class="zone-box" id="my-hand"></div>
+
+            <!-- Actions Panel Area -->
+            <div class="zone-box" style="justify-content:center;">
+                <button onclick="drawCard()" style="background:#d97706; padding:15px;">🃏 Draw Card</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Core game state arrays
+        let deck = [];
+        let hand = [];
+        let playerResources = 0;
+        let isAIActive = false;
+        let peer = null;
+        let connection = null;
+
+        // Fallback card database item registry array used if deck strings parse empty
+        const fallbackDatabase = [
+            { name: "Battlefield Marine", cost: 2, attack: 3, hp: 3, arena: "ground" },
+            { name: "Restored ARC-170", cost: 2, attack: 2, hp: 3, arena: "space" },
+            { name: "Vanguard Infantry", cost: 1, attack: 2, hp: 2, arena: "ground" },
+            { name: "Alliance X-Wing", cost: 3, attack: 2, hp: 3, arena: "space" }
+        ];
+
+        // --- DECKLIST PARSER ENGINE ---
+        function parseDecklist() {
+            const text = document.getElementById("decklist-input").value.trim();
