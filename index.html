@@ -299,3 +299,233 @@
             <div class="zone-box" style="flex-direction:column; justify-content:center; align-items:flex-start;">
                 <div>📦 Resources: <span id="res-count">0</span></div>
                 <div style="margin-top:5px;">
+// Core game state arrays
+let deck = [];
+let hand = [];
+let playerResources = 0;
+let isAIActive = false;
+let peer = null;
+let connection = null;
+// Vault containing all multiple decks saved by the user
+let savedDecks = {};
+// Fallback card database item registry array used if deck strings parse empty
+const fallbackDatabase = [
+{ name: "Battlefield Marine", cost: 2, attack: 3, hp: 3, arena: "ground" },
+{ name: "Restored ARC-170", cost: 2, attack: 2, hp: 3, arena: "space" },
+{ name: "Vanguard Infantry", cost: 1, attack: 2, hp: 2, arena: "ground" },
+{ name: "Alliance X-Wing", cost: 3, attack: 2, hp: 3, arena: "space" }
+];
+// --- MULTI-DECK MANAGER LOGIC ---
+// Runs immediately when page finishes rendering
+window.onload = function() {
+const storedData = localStorage.getItem("swu_unblocked_decks");
+if (storedData) {
+savedDecks = JSON.parse(storedData);
+} else {
+// Populate with standard starter decks if memory registers blank
+savedDecks = {
+"Luke Skywalker Starter": "1 Luke Skywalker\n3 Restored ARC-170\n3 Battlefield Marine\n3 Alliance X-Wing",
+"Darth Vader Starter": "1 Darth Vader\n3 TIE Advanced\n3 Viper Probe Droid\n3 Cell Block Guard"
+};
+saveToLocalStorage();
+}
+updateDeckDropdownMenu();
+};
+function updateDeckDropdownMenu() {
+const selector = document.getElementById("deck-selector");
+selector.innerHTML = "";
+Object.keys(savedDecks).forEach(deckName => {
+const opt = document.createElement("option");
+opt.value = deckName;
+opt.innerText = deckName;
+selector.appendChild(opt);
+});
+loadSelectedDeckToForm();
+}
+function loadSelectedDeckToForm() {
+const selector = document.getElementById("deck-selector");
+const activeDeckName = selector.value;
+if (activeDeckName && savedDecks[activeDeckName]) {
+document.getElementById("deck-name-input").value = activeDeckName;
+document.getElementById("decklist-input").value = savedDecks[activeDeckName];
+}
+}
+function saveCurrentDeck() {
+const name = document.getElementById("deck-name-input").value.trim();
+const list = document.getElementById("decklist-input").value.trim();
+if (!name || !list) {
+alert("Please fill out both the Deck Name and the Card List text area profile!");
+return;
+}
+savedDecks[name] = list;
+saveToLocalStorage();
+updateDeckDropdownMenu();
+// Force dropdown back to the one just modified/created
+document.getElementById("deck-selector").value = name;
+alert("${name}" saved successfully to browser cache!);
+}
+function deleteSelectedDeck() {
+const selector = document.getElementById("deck-selector");
+const target = selector.value;
+if (!target) return;
+if (confirm(Are you sure you want to permanently delete "${target}"?)) {
+delete savedDecks[target];
+saveToLocalStorage();
+updateDeckDropdownMenu();
+}
+}
+function saveToLocalStorage() {
+localStorage.setItem("swu_unblocked_decks", JSON.stringify(savedDecks));
+}
+// --- DECKLIST PARSER ENGINE ---
+function parseDecklist() {
+const text = document.getElementById("decklist-input").value.trim();
+deck = [];
+if (!text) {
+// If text area is empty, automatically populate a random playable layout
+for (let i = 0; i < 30; i++) {
+const sample = fallbackDatabase[Math.floor(Math.random() * fallbackDatabase.length)];
+deck.push({ ...sample, id: 'card_' + i });
+}
+return;
+}
+const lines = text.split('\n');
+let itemCounter = 0;
+lines.forEach(line => {
+const match = line.trim().match(/^(\d+)\s+(.+)$/);
+if (match) {
+const count = parseInt(match[1]);
+const cardName = match[2];
+// Simple logic tracking keywords inside title profiles to deduce matching arenas
+let inferredArena = "ground";
+if (cardName.toLowerCase().includes("wing") || cardName.toLowerCase().includes("arc-") || cardName.toLowerCase().includes("starfighter") || cardName.toLowerCase().includes("tie")) {
+inferredArena = "space";
+}
+for (let i = 0; i < count; i++) {
+deck.push({
+name: cardName,
+cost: Math.floor(Math.random() * 4) + 1, // Sandbox random stat distribution assignment
+attack: Math.floor(Math.random() * 3) + 2,
+hp: Math.floor(Math.random() * 4) + 2,
+arena: inferredArena,
+id: 'card_' + (itemCounter++)
+});
+}
+}
+});
+}
+// --- SCREEN ARCHITECTURE AND CONTROLS ---
+function enterGameView(modeName) {
+document.getElementById("setup-screen").classList.add("hidden");
+document.getElementById("game-container").classList.remove("hidden");
+document.getElementById("game-mode-label").innerText = modeName;
+// Draw opening hand values
+for(let i=0; i<5; i++) { drawCard(); }
+}
+function drawCard() {
+if (deck.length > 0) {
+const card = deck.pop();
+hand.push(card);
+renderHand();
+} else {
+alert("Your deck is empty!");
+}
+}
+function adjustResources(amount) {
+playerResources += amount;
+document.getElementById("res-count").innerText = playerResources;
+}
+function readyAllResources() {
+// Reset exhaustion values on active board structures
+const activeCards = document.querySelectorAll('#game-container .card');
+activeCards.forEach(c => c.classList.remove('exhausted'));
+}
+// --- PLAY ENGINE AND LOGIC FLOWS ---
+function playCardToField(cardId) {
+const cardIndex = hand.findIndex(c => c.id === cardId);
+if (cardIndex === -1) return;
+const card = hand[cardIndex];
+hand.splice(cardIndex, 1);
+renderHand();
+// Append explicitly to matched interactive panels
+const targetContainerId = card.arena === "space" ? "arena-space-ply" : "arena-ground-ply";
+createCardElement(card, targetContainerId, true);
+// Network broadcast handler triggers
+if (connection && connection.open) {
+connection.send({ type: 'OPPONENT_PLAY', card: card });
+}
+// Simple AI counter-trigger rule loops
+if (isAIActive) {
+setTimeout(executeAIBotAction, 800);
+}
+}
+function createCardElement(card, containerId, isInteractive) {
+const parent = document.getElementById(containerId);
+const cardDiv = document.createElement('div');
+cardDiv.className = 'card';
+cardDiv.innerHTML = <div class="card-cost">${card.cost}</div> <div style="font-weight:bold; word-wrap:break-word;">${card.name}</div> <div class="card-stats"> <span class="stat-atk">${card.attack}</span> <span class="stat-hp">${card.hp}</span> </div>;
+if (isInteractive) {
+cardDiv.onclick = () => {
+cardDiv.classList.toggle('exhausted');
+};
+}
+parent.appendChild(cardDiv);
+}
+function renderHand() {
+const handContainer = document.getElementById("my-hand");
+handContainer.innerHTML = "";
+hand.forEach(card => {
+const item = document.createElement('div');
+item.className = 'card';
+item.innerHTML = <div class="card-cost">${card.cost}</div> <div style="font-weight:bold;">${card.name}</div> <div class="card-stats"> <span class="stat-atk">${card.attack}</span> <span class="stat-hp">${card.hp}</span> </div>;
+item.onclick = () => playCardToField(card.id);
+handContainer.appendChild(item);
+});
+}
+// --- PHASE MODULE 1: AUTOMATED LOCAL SANDBOX BOT ENGINE ---
+function startSinglePlayer() {
+parseDecklist();
+isAIActive = true;
+enterGameView("VS AI Bot Profile");
+}
+function executeAIBotAction() {
+// Automation script representing opposition interaction profiles
+const aiCard = fallbackDatabase[Math.floor(Math.random() * fallbackDatabase.length)];
+const targetContainerId = aiCard.arena === "space" ? "arena-space-opp" : "arena-ground-opp";
+createCardElement(aiCard, targetContainerId, false);
+}
+// --- PHASE MODULE 2: FIREWALL-BYPASSING P2P NETWORKING ---
+function createMultiplayerRoom() {
+parseDecklist();
+peer = new Peer();
+peer.on('open', (id) => {
+prompt("Room initialized! Share this exact code key with your friend via chat window:", id);
+enterGameView("Lobby Host");
+});
+peer.on('connection', (conn) => {
+connection = conn;
+initializeNetworkEvents();
+});
+}
+function joinMultiplayerRoom() {
+parseDecklist();
+const hostId = document.getElementById("join-room-id").value.trim();
+if (!hostId) return alert("Please type or paste your friend's Room ID code value first!");
+peer = new Peer();
+peer.on('open', () => {
+connection = peer.connect(hostId);
+initializeNetworkEvents();
+enterGameView("Peer Connected Client");
+});
+}
+function initializeNetworkEvents() {
+connection.on('open', () => {
+console.log("Network communication synchronization active.");
+});
+connection.on('data', (data) => {
+if (data.type === 'OPPONENT_PLAY') {
+const inverseContainer = data.card.arena === "space" ? "arena-space-opp" : "arena-ground-opp";
+createCardElement(data.card, inverseContainer, false);
+}
+});
+}
